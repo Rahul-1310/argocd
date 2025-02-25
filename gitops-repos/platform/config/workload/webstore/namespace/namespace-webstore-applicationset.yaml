@@ -1,0 +1,44 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: namespace-webstore
+  namespace: argocd
+spec:
+  syncPolicy:
+    preserveResourcesOnDeletion: false
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            workload_webstore: 'true'
+        values:
+          workload: webstore
+  template:
+    metadata:
+      name: 'namespace-{{metadata.labels.environment}}-webstore'
+      labels:
+        environment: '{{metadata.labels.environment}}'
+        tenant: 'webstore'
+        workloads: 'true'
+    spec:
+      project: default
+      source:
+        repoURL: '{{metadata.annotations.platform_repo_url}}'
+        path: '{{metadata.annotations.platform_repo_basepath}}charts/namespace'
+        targetRevision: '{{metadata.annotations.platform_repo_revision}}'
+        helm:
+          releaseName: 'webstore'
+          ignoreMissingValueFiles: true
+          valueFiles:
+            - '../../config/workload/webstore/namespace/values/default-values.yaml'
+            - '../../config/workload/webstore/namespace/values/{{metadata.labels.environment}}-values.yaml'
+      destination:
+        name: '{{name}}'
+      syncPolicy:
+        automated:
+          allowEmpty: true
+          prune: true
+        retry:
+          backoff:
+            duration: 1m
+            #limit: 100

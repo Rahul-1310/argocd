@@ -1,0 +1,48 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: webstore
+  namespace: argocd
+spec:
+  syncPolicy:
+    preserveResourcesOnDeletion: false
+  generators:
+    - matrix:
+        generators:
+          - clusters:
+              selector:
+                matchLabels:
+                  workload_webstore: 'true'
+              values:
+                workload: webstore
+          - git:
+              repoURL: '{{metadata.annotations.workload_repo_url}}'
+              revision: '{{metadata.annotations.workload_repo_revision}}'
+              directories:
+                - path: '{{metadata.annotations.workload_repo_basepath}}{{values.workload}}/*'
+  template:
+    metadata:
+      name: 'webstore-{{metadata.labels.environment}}-{{path.basename}}'
+      labels:
+        environment: '{{metadata.labels.environment}}'
+        tenant: 'webstore'
+        component: '{{path.basename}}'
+        workloads: 'true'
+    spec:
+      project: default
+      source:
+        repoURL: '{{metadata.annotations.workload_repo_url}}'
+        path: '{{path}}/{{metadata.labels.environment}}'
+        targetRevision: '{{metadata.annotations.workload_repo_revision}}'
+      destination:
+        namespace: '{{path.basename}}'
+        name: '{{name}}'
+      syncPolicy:
+        automated:
+          allowEmpty: true
+          prune: true
+        retry:
+          backoff:
+            duration: 1m
+            #limit: 100
+
